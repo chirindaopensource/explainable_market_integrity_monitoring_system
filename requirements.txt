@@ -1,0 +1,170 @@
+﻿# =============================================================================
+# AIMM-X: An Explainable Market Integrity Monitoring System
+# Requirements Specification File
+# =============================================================================
+# 
+# This file specifies all Python package dependencies required for the
+# production-grade implementation of the analytical framework presented in:
+# "An Explainable Market Integrity Monitoring System with Multi-Source 
+# Attention Signals and Transparent Scoring" by Sandeep Neela (2026).
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# Python Version Requirement: >=3.8,<4.0
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Core Scientific Computing Stack
+# -----------------------------------------------------------------------------
+# NumPy: Fundamental package for vectorized numerical operations, array 
+# manipulation, and mathematical functions. Required for efficient computation
+# of rolling statistics, Z-scores, and correlation coefficients.
+numpy>=1.24.0,<2.0.0
+
+# Pandas: Primary data structure library for panel data (MultiIndex DataFrames),
+# time-series manipulation, rolling window operations, and temporal alignment.
+# Critical for handling ticker×time indexed data and forward-filling missing
+# observations.
+pandas>=2.0.0,<3.0.0
+
+# -----------------------------------------------------------------------------
+# Time-Series and Calendar Management
+# -----------------------------------------------------------------------------
+# PyTZ: Timezone handling for precise temporal alignment of market data across
+# different exchanges and UTC-based API responses. Ensures proper handling of
+# market open/close times and daylight saving transitions.
+pytz>=2023.3
+
+# Python-DateUtil: Enhanced date parsing and relativedelta operations for
+# flexible temporal arithmetic (e.g., lookback window construction).
+python-dateutil>=2.8.2
+
+# -----------------------------------------------------------------------------
+# Financial Market Calendars (Optional but Recommended)
+# -----------------------------------------------------------------------------
+# Exchange-Calendars: Provides precise trading calendar definitions for global
+# exchanges (NYSE, NASDAQ, etc.), handling market holidays, early closes, and
+# half-days. Essential for accurate business day calculations and avoiding
+# spurious missing data flags during market closures.
+# NOTE: This is listed as optional in the code but highly recommended for
+# production deployment to ensure temporal alignment accuracy.
+exchange-calendars>=4.2.0
+
+# -----------------------------------------------------------------------------
+# Data Acquisition and API Integration
+# -----------------------------------------------------------------------------
+# Requests: HTTP library for RESTful API communication with data providers
+# (e.g., Polygon.io). Handles pagination, rate limiting, and robust error
+# handling for market data ingestion.
+requests>=2.31.0
+
+# -----------------------------------------------------------------------------
+# Statistical Analysis and Econometrics
+# -----------------------------------------------------------------------------
+# SciPy: Scientific computing library providing advanced statistical functions,
+# correlation computations (scipy.stats.pearsonr), and signal processing
+# utilities that may be leveraged for enhanced volatility estimation.
+scipy>=1.11.0
+
+# StatsModels: Econometric modeling toolkit (optional enhancement for future
+# GARCH implementation or more sophisticated volatility modeling beyond
+# realized volatility). Not strictly required for current implementation but
+# valuable for extending the statistical framework.
+statsmodels>=0.14.0
+
+# -----------------------------------------------------------------------------
+# Testing and Quality Assurance
+# -----------------------------------------------------------------------------
+# Pytest: Industry-standard testing framework for unit tests, integration tests,
+# and validation of pipeline components (Phase 1-6 modular validation).
+pytest>=7.4.0
+
+# Pytest-Cov: Coverage reporting plugin for pytest to ensure comprehensive
+# test coverage of critical financial computation logic.
+pytest-cov>=4.1.0
+
+# -----------------------------------------------------------------------------
+# Code Quality and Type Checking
+# -----------------------------------------------------------------------------
+# MyPy: Static type checker for Python, essential for validating type hints
+# and ensuring type safety across the codebase, particularly critical for
+# financial calculations where type errors can lead to silent failures.
+mypy>=1.5.0
+
+# Black: Uncompromising code formatter for PEP-8 compliance and consistent
+# code style across the project.
+black>=23.7.0
+
+# Flake8: Linting tool for style guide enforcement (PEP-8) and detecting
+# potential bugs, unused imports, and code complexity issues.
+flake8>=6.1.0
+
+# Pylint: Comprehensive static code analyzer for detecting errors, enforcing
+# coding standards, and identifying code smells in the implementation.
+pylint>=2.17.0
+
+# -----------------------------------------------------------------------------
+# Documentation Generation
+# -----------------------------------------------------------------------------
+# Sphinx: Documentation generator for creating comprehensive API documentation
+# from docstrings, essential for maintaining institutional knowledge and
+# onboarding new analysts.
+sphinx>=7.1.0
+
+# Sphinx-RTD-Theme: Read the Docs theme for professional documentation
+# presentation with enhanced readability.
+sphinx-rtd-theme>=1.3.0
+
+# -----------------------------------------------------------------------------
+# Data Serialization and Artifact Management
+# -----------------------------------------------------------------------------
+# PyYAML: YAML parser for configuration file management (e.g., threshold
+# parameters, feature weights, ticker universe definitions).
+pyyaml>=6.0.1
+
+# Openpyxl: Excel file I/O for exporting audit trails, Top-15 anomaly reports,
+# and factor decomposition tables in stakeholder-friendly formats.
+openpyxl>=3.1.0
+
+# -----------------------------------------------------------------------------
+# Performance Profiling (Development)
+# -----------------------------------------------------------------------------
+# Memory-Profiler: Line-by-line memory usage profiler for optimizing panel
+# data operations and identifying memory bottlenecks in vectorized computations.
+memory-profiler>=0.61.0
+
+# Line-Profiler: Line-by-line time profiler for identifying computational
+# bottlenecks in rolling window operations and hysteresis segmentation.
+line-profiler>=4.1.0
+
+# -----------------------------------------------------------------------------
+# Jupyter Ecosystem (Development and Research)
+# -----------------------------------------------------------------------------
+# Jupyter: Interactive notebook environment for exploratory data analysis,
+# parameter tuning, and visualization of detection results.
+jupyter>=1.0.0
+
+# Matplotlib: Core plotting library for visualizing time-series data, scoring
+# distributions, and hysteresis state transitions.
+matplotlib>=3.7.0
+
+# Seaborn: Statistical data visualization built on matplotlib, useful for
+# creating publication-quality factor decomposition charts and correlation
+# heatmaps.
+seaborn>=0.12.0
+
+# -----------------------------------------------------------------------------
+# Additional Utilities
+# -----------------------------------------------------------------------------
+# Tqdm: Progress bar library for long-running operations (e.g., iterating
+# through large ticker universes or multi-year backtests).
+tqdm>=4.66.0
+
+# Joblib: Efficient serialization and parallel processing library for caching
+# intermediate results and parallelizing ticker-level computations.
+joblib>=1.3.0
+
+# =============================================================================
+# End of Requirements
+# =============================================================================

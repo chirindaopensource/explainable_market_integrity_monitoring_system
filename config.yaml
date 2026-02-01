@@ -1,0 +1,315 @@
+﻿# ==============================================================================
+# AIMM-X MASTER STUDY CONFIGURATION
+# Context: Contains all schemas, methodological parameters, calendar rules,
+# missingness semantics, normalization definitions, segmentation conventions,
+# scoring definitions, and reporting filters required to reproduce the study.
+# ==============================================================================
+
+# ==============================================================================
+# SECTION 1: METADATA & UNIVERSE DEFINITION
+# ==============================================================================
+meta:
+  study_name: "AIMM-X_Preprint_Replication"
+  version: "1.0.0"
+  authors:
+    - "Sandeep Neela"
+  date_range:
+    start: "2024-01-08"
+    end: "2024-12-31"
+    bar_frequency: "1D"  # Daily bars (trading sessions)
+  universe_tickers:
+    - "GME"
+    - "AMC"
+    - "BB"
+    - "NOK"
+    - "AAPL"
+    - "MSFT"
+    - "AMZN"
+    - "NVDA"
+    - "META"
+    - "GOOG"
+    - "TSLA"
+    - "NFLX"
+    - "SNAP"
+    - "COIN"
+    - "MSTR"
+    - "HOOD"
+    - "PLTR"
+    - "SPY"
+    - "QQQ"
+    - "IWM"
+    - "XLF"
+    - "TLT"
+    - "SPCE"
+    - "RBLX"
+
+# ==============================================================================
+# SECTION 2: TRADING CALENDAR (NON-NEGOTIABLE FOR REPRODUCIBILITY)
+# ==============================================================================
+trading_calendar:
+  calendar_name: "XNYS"  # Exchange trading sessions (NOT generic business days)
+  # For perfect fidelity, store the explicit session list used to index the panel:
+  # (A list of YYYY-MM-DD strings for all sessions from start..end inclusive.)
+  explicit_sessions: null
+  require_exact_session_coverage_per_ticker: true
+
+# ==============================================================================
+# SECTION 3: RAW INPUT DATA STRUCTURE SCHEMAS (POST-INGESTION PANEL)
+# ==============================================================================
+input_schemas:
+  panel_index:
+    index_levels:
+      - "date"
+      - "ticker"
+    requirements:
+      unique_index: true
+      sorted_within_ticker_by_date: true
+
+  market_microstructure_columns:
+    source: "Polygon.io Aggregates API (daily, adjusted)"
+    columns:
+      open_price:
+        dtype: "float64"
+      high_price:
+        dtype: "float64"
+      low_price:
+        dtype: "float64"
+      close_price:
+        dtype: "float64"
+        must_be_split_adjusted: true
+        must_be_positive: true
+      volume:
+        dtype: "float64_or_int64"
+        must_be_strictly_positive: true
+      volume_weighted_average_price:
+        dtype: "float64"
+      number_of_transactions:
+        dtype: "int64"
+    row_level_qc_rules:
+      ohlc_consistency: true
+
+  attention_source_columns:
+    source: "Synthetic Proxies (Preprint) / APIs (Production)"
+    # Attention columns must support NaN to represent 'no coverage'
+    missingness_semantics:
+      zero_means_no_activity_with_coverage: true
+      nan_means_no_coverage: true
+    columns:
+      reddit_posts:
+        dtype: "Int64_nullable_or_float64"
+      stocktwits_msgs:
+        dtype: "Int64_nullable_or_float64"
+      wiki_views:
+        dtype: "Int64_nullable_or_float64"
+      news_articles:
+        dtype: "Int64_nullable_or_float64"
+      google_trends:
+        dtype: "Int64_nullable_or_float64"
+
+# ==============================================================================
+# SECTION 4: ATTENTION ALIGNMENT + NORMALIZATION + FUSION (Eq. 1 requires tilde a)
+# ==============================================================================
+attention_processing:
+  # Canonical source set S used in Eq. (1)
+  sources_S:
+    - "reddit"
+    - "stocktwits"
+    - "wikipedia"
+    - "news"
+    - "trends"
+
+  # Map each source name to the raw column in df_raw_panel
+  source_to_raw_column:
+    reddit: "reddit_posts"
+    stocktwits: "stocktwits_msgs"
+    wikipedia: "wiki_views"
+    news: "news_articles"
+    trends: "google_trends"
+
+  # Source-specific alignment rules (must not be globally applied to OHLCV)
+  alignment_rules_per_source:
+    # Each entry must specify:
+    # - how to resample to daily trading sessions
+    # - whether forward-fill is allowed
+    # - how to treat missingness (0 vs NaN)
+    reddit:
+      resample: "sum"
+      ffill_allowed: false
+    stocktwits:
+      resample: "sum"
+      ffill_allowed: false
+    wikipedia:
+      resample: "sum_or_last"
+      ffill_allowed: true
+    news:
+      resample: "sum"
+      ffill_allowed: false
+    trends:
+      resample: "last_or_mean"
+      ffill_allowed: true
+
+  # Definition of normalized per-source signals \tilde{a}_{s,i,t} used in Eq. (1)
+  # The paper states 'resampled and normalized' but does not provide a closed-form.
+  # For faithful replication, this must match the authors' implementation.
+  normalization_definition_for_tilde_a:
+    mode: "as_in_replication_package"  # must be concretely specified to reproduce exactly
+    explicit_formula_or_reference: null  # required for deterministic reproduction
+
+  # Eq. (1) fusion weights w_s
+  attention_fusion:
+    equation: "Eq. 1"
+    method: "weighted_sum"
+    weights_w_s:
+      reddit: 1.0
+      stocktwits: 1.0
+      wikipedia: 1.0
+      news: 1.0
+      trends: 1.0
+
+# ==============================================================================
+# SECTION 5: FEATURE ENGINEERING (Eq. 2 and Eq. 3)
+# ==============================================================================
+feature_engineering:
+  returns:
+    return_type: "log_returns"
+    equation: "Eq. 2"
+  volatility:
+    volatility_estimator: "close_to_close_rolling_squared_returns"
+    equation: "Eq. 3"
+    lookback_L: 20           # must match authors' run for exact replication
+    epsilon: 1.0e-8          # must match authors' run for exact replication
+
+# ==============================================================================
+# SECTION 6: BASELINE ESTIMATION & Z-SCORES (Eq. 4, 5, 6)
+# ==============================================================================
+deviation_detection:
+  baseline_window_B: 20
+  min_periods: 20
+
+  # Critical look-ahead control: baseline at t must use only {t-1, ..., t-B}
+  use_lagged_baseline_only: true
+  lag: 1
+
+  epsilon: 1.0e-8  # used where the paper adds epsilon in variance/denominator
+  z_score_logic:
+    equation: "Eq. 6"
+    standardization: "standard_mean_std"
+    robust_mode: false
+
+# ==============================================================================
+# SECTION 7: COMPOSITE STRENGTH SCORE (Eq. 7)
+# ==============================================================================
+composite_strength_score:
+  equation: "Eq. 7"
+  weights_alpha:
+    alpha_r: 1.0
+    alpha_sigma: 1.0
+    alpha_A: 1.0
+  return_channel_is_two_sided: true
+
+# ==============================================================================
+# SECTION 8: SEGMENTATION ALGORITHM (HYSTERESIS STATE MACHINE)
+# ==============================================================================
+segmentation_algorithm:
+  algorithm_name: "Hysteresis_State_Machine"
+  parameters:
+    theta_high: 3.0
+    theta_low: 2.0
+    gap_tolerance_g: 3
+    min_window_len_Lmin: 2
+  # Boundary conventions must be fixed for deterministic window endpoints:
+  boundary_conventions:
+    enter_condition: "s_{i,t} > theta_high"
+    stay_condition: "s_{i,t} > theta_low"
+    exit_condition: "s_{i,t} <= theta_low for g consecutive bars"
+    gap_counter_resets_on_recovery: true
+    window_end_timestamp_rule: "last_timestamp_with_s_gt_theta_low_before_exit_run"
+
+# ==============================================================================
+# SECTION 9: SCORING & ATTRIBUTION (phi_1..phi_6 and M)
+# ==============================================================================
+scoring_model:
+  integrity_score_M:
+    equation: "Eq. 14"
+    phi_weights_omega:
+      omega_1: 1.0
+      omega_2: 1.0
+      omega_3: 1.0
+      omega_4: 1.0
+      omega_5: 1.0
+      omega_6: 1.0
+    # Explicitly store decomposition contributions for auditability:
+    store_factor_contributions: true
+
+  phi_factor_definitions:
+    phi_1:
+      equation: "Eq. 8"
+      definition: "sum_{t in w} (z^{(r)}_{i,t})^2"
+    phi_2:
+      equation: "Eq. 9"
+      definition: "sum_{t in w} max(z^{(sigma)}_{i,t}, 0)"
+    phi_3:
+      equation: "Eq. 10"
+      definition: "sum_{t in w} max(z^{(A)}_{i,t}, 0)"
+    phi_4:
+      equation: "Eq. 11"
+      correlation_method: "pearson"
+      degenerate_corr_handling: "set_to_0_if_std_zero_or_insufficient_length"
+
+    # The paper notes phi_5 and phi_6 were inactive in the preprint run.
+    # To avoid ambiguous circularity / undefined behaviors, toggle explicitly.
+    phi_5:
+      equation: "Eq. 12"
+      enabled: false
+      definition_requires:
+        - "distance(w,w')"
+        - "Delta_recur"
+        - "tau_recur"
+        - "circularity_resolution"
+      Delta_recur: 10
+      tau_recur: null
+      distance_definition: null
+      circularity_resolution: null
+
+    phi_6:
+      equation: "Eq. 13"
+      enabled: false
+      definition_requires:
+        - "per_source_z_scores_z^{(s)}_{i,t}"
+        - "missingness_rules_across_sources"
+      per_source_z_definition_reference: null
+      missingness_rules_across_sources: null
+
+# ==============================================================================
+# SECTION 10: RANKING (rank_pct) + REPORTING FILTERS
+# ==============================================================================
+reporting_and_ranking:
+  rank_percentile:
+    equation: "Eq. 15"
+    tie_handling: "strict_less_than_only"  # numerator counts only M(w') < M(w)
+
+  table_and_artifact_filters:
+    # Warmup exclusion must be defined in terms of baseline availability:
+    exclude_warmup: true
+    warmup_rule: "exclude_rows_before_full_baseline_available_for_all_required_channels"
+
+    # The paper mentions filtering extreme early-sample artifacts with z-score > 20.
+    # You must specify which z-scores are checked and whether the exclusion is window-level.
+    max_z_score_cutoff: 20.0
+    z_score_cutoff_applies_to:
+      - "abs(z^{(r)})"
+      - "z^{(sigma)}"
+      - "z^{(A)}"
+    cutoff_scope: "drop_window_if_any_bar_in_window_exceeds_cutoff"
+
+  output_tables:
+    top_n_windows: 15
+
+# ==============================================================================
+# SECTION 11: PREPRINT ATTENTION PROXY REPRODUCIBILITY (IF USING SYNTHETIC DATA)
+# ==============================================================================
+preprint_attention_proxy_reproducibility:
+  # Required if attention inputs are generated stochastically.
+  mode: "synthetic_proxies"
+  random_seed: null
+  generator_spec_reference: null  # must be provided to reproduce the preprint run exactly
